@@ -39,7 +39,7 @@ async fn main() -> anyhow::Result<()> {
             .await
             .unwrap_or_else(|e| {
                 tracing::warn!("Could not load token store: {e}. Starting fresh.");
-                // TokenStore::load에서 실패시 빈 store 반환하도록 수정 필요시 처리
+                // Panic if token store initialization fails
                 panic!("Failed to initialize token store: {e}");
             }),
     );
@@ -59,11 +59,11 @@ async fn main() -> anyhow::Result<()> {
         config: Arc::clone(&config),
     };
 
-    // 세션 스토어
+    // Session store
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store);
 
-    // 라우터 구성
+    // Router configuration
     let app = axum::Router::new()
         .merge(web::router(app_state.clone()))
         .merge(api::router(app_state.clone()))
@@ -74,7 +74,7 @@ async fn main() -> anyhow::Result<()> {
     let port = config.port;
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
 
-    // 모델 다운로드 및 로드를 백그라운드에서 병렬 실행
+    // Download and load model in background, executed in parallel
     let model_cache_dir = config.model_cache_dir.clone();
     let hf_token = config.hf_token.clone();
     let model_status_bg = Arc::clone(&model_status);

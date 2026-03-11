@@ -88,10 +88,10 @@ pub async fn download_models(
     let mut paths: std::collections::HashMap<String, std::path::PathBuf> = Default::default();
 
     for &filename in MODEL_FILES {
-        // 파일명에서 하위 디렉터리 구조 보존
+        // Preserve subdirectory structure from filename
         let local_path = cache_path.join(filename.replace('/', std::path::MAIN_SEPARATOR_STR));
 
-        // 이미 캐시된 파일은 건너뜀
+        // Skip already cached files
         if local_path.exists() {
             tracing::info!("Already cached: {filename}");
             paths.insert(filename.to_string(), local_path);
@@ -120,7 +120,7 @@ pub async fn download_models(
                         "Download attempt {}/{MAX_RETRIES} failed for {filename}: {e}",
                         attempt + 1
                     );
-                    // 불완전하게 생성된 파일 제거
+                    // Remove incompletely created files
                     let _ = tokio::fs::remove_file(&local_path).await;
                     last_err = Some(e);
                     tokio::time::sleep(std::time::Duration::from_secs(2u64.pow(attempt))).await;

@@ -2,7 +2,7 @@ use anyhow::Result;
 use unicode_normalization::UnicodeNormalization;
 
 pub struct TextProcessor {
-    // 인덱스 = 유니코드 코드포인트, 값 = 모델 내부 ID (-1이면 미지원)
+    // Index = unicode codepoint, value = model internal ID (-1 means unsupported)
     indexer: Vec<i64>,
 }
 

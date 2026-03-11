@@ -100,7 +100,7 @@ fn build_session(path: &std::path::Path) -> Result<Session> {
     #[cfg(target_os = "macos")]
     let builder = {
         use ort::execution_providers::CoreMLExecutionProvider;
-        // 모델 파일 옆에 .mlmodelc 캐시를 두어 재컴파일 방지
+        // Place .mlmodelc cache next to model file to prevent recompilation
         let cache_dir = path.with_extension("mlmodelc");
         let cache_dir_str = cache_dir.to_string_lossy().into_owned();
         builder.with_execution_providers([
