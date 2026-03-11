@@ -21,7 +21,7 @@ This README serves as an index to all SonicBoom documentation:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/SonicBoom.git
+git clone https://github.com/daramkun/SonicBoom.git
 cd SonicBoom
 
 # Build the project
@@ -177,13 +177,7 @@ docker-compose up -d
 
 ---
 
-## License
-
-MIT License - See LICENSE file for details.
-
----
-
 ## Acknowledgments
 
-- [Supertonic 2](https://huggingface.co/hexgrad/supertonic-2) - The TTS model
+- [Supertonic 2](https://huggingface.co/Supertone/supertonic-2) - The TTS model
 - [ONNX Runtime](https://onnxruntime.ai/) - Cross-platform ML inference
