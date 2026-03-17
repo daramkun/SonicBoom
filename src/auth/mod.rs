@@ -21,7 +21,7 @@ impl FromRequestParts<AppState> for AuthenticatedToken {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        // Referer가 자기 자신(같은 호스트)이면 인증 없이 허용
+        // Allow without auth if Referer is same host
         if is_self_referer(parts) {
             return Ok(AuthenticatedToken("__self__".to_string()));
         }
@@ -45,7 +45,7 @@ impl FromRequestParts<AppState> for AuthenticatedToken {
     }
 }
 
-/// Referer 헤더가 요청과 같은 호스트를 가리키면 true
+/// Returns true if Referer header points to the same host as the request
 fn is_self_referer(parts: &Parts) -> bool {
     let referer = match parts.headers.get("referer") {
         Some(v) => match v.to_str() {
@@ -63,7 +63,7 @@ fn is_self_referer(parts: &Parts) -> bool {
         None => return false,
     };
 
-    // referer가 "http(s)://<host>/..." 형태인지 확인
+    // Check if referer is in "http(s)://<host>/..." form
     referer
         .strip_prefix("http://")
         .or_else(|| referer.strip_prefix("https://"))

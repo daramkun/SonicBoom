@@ -7,7 +7,7 @@ pub fn login_page(error: Option<&str>) -> String {
 
     format!(
         r#"<!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -80,7 +80,7 @@ pub fn admin_page(tokens: &[Token]) -> String {
 
     format!(
         r#"<!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">

@@ -27,10 +27,10 @@ pub fn synthesize(
 
     for (i, chunk) in chunks.iter().enumerate() {
         if i > 0 {
-            // 청크 사이 0.2초 무음
+            // 0.2 seconds of silence between chunks
             all_samples.extend(vec![0.0f32; (sample_rate * 0.2) as usize]);
         }
-        // 레퍼런스: 언어 태그로 감싸고 끝에 마침표 추가
+        // Reference: wrap with language tag and add period at the end
         let tagged = preprocess_chunk(chunk, lang);
         let chunk_samples = synthesize_chunk(
             model, &tagged, style, inference_steps, chunk_size, latent_dim_eff, sample_rate,
@@ -41,17 +41,17 @@ pub fn synthesize(
     Ok(all_samples)
 }
 
-/// 레퍼런스(helper.rs)의 preprocess_text 간소화 버전
+/// Simplified version of preprocess_text from reference (helper.rs)
 fn preprocess_chunk(text: &str, lang: &str) -> String {
     let text = text.trim();
-    // 끝에 구두점이 없으면 마침표 추가
+    // Add period at the end if no punctuation exists
     let needs_period = !text.ends_with(['.', '!', '?', ';', ':', ',', '\'', '"', ')', ']', '}', '…', '。']);
     let body = if needs_period {
         format!("{text}.")
     } else {
         text.to_string()
     };
-    // 언어 태그 래핑
+    // Language tag wrapping
     format!("<{lang}>{body}</{lang}>")
 }
 
@@ -83,7 +83,7 @@ fn synthesize_chunk(
     let (_, ttl1, ttl2) = style.style_ttl_dims;
     let style_ttl = Array3::<f32>::from_shape_vec((1, ttl1, ttl2), style.style_ttl.clone())?;
 
-    // 1. Duration predictor → duration(초)
+    // 1. Duration predictor → duration (seconds)
     let duration_sec: f32 = {
         let mut session = model.duration_predictor.lock().unwrap();
         let outputs = session.run(ort::inputs![
@@ -120,7 +120,7 @@ fn synthesize_chunk(
         text_emb_vec,
     )?;
 
-    // 3. 노이즈 초기화 (마스크 적용)
+    // 3. Initialize noise (with mask applied)
     let mut rng = rand::rng();
     let noise: Vec<f32> = (0..latent_dim_eff * latent_len)
         .map(|_| {
@@ -135,7 +135,7 @@ fn synthesize_chunk(
     let total_step_arr = Array::from_elem(1, total_steps);
 
     // 4. Flow matching loop
-    // 레퍼런스: denoised_latent를 바로 xt로 대입 (Euler step 아님)
+    // Reference: assign denoised_latent directly to xt (not Euler step)
     for step in 0..inference_steps {
         let current_step_arr = Array::from_elem(1, step as f32);
 
@@ -155,7 +155,7 @@ fn synthesize_chunk(
             (dims, data.to_vec())
         };
 
-        // 레퍼런스: xt = denoised (직접 대입)
+        // Reference: xt = denoised (direct assignment)
         xt = Array3::<f32>::from_shape_vec((vel_dims[0], vel_dims[1], vel_dims[2]), vel_vec)?;
     }
 
@@ -169,7 +169,7 @@ fn synthesize_chunk(
         data.to_vec()
     };
 
-    // 6. duration으로 트리밍 (레퍼런스: wav[..wav_len])
+    // 6. Trim by duration (reference: wav[..wav_len])
     let trimmed_len = wav_len.min(wav_vec.len());
     Ok(wav_vec[..trimmed_len].to_vec())
 }

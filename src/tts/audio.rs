@@ -6,7 +6,7 @@ const OUTPUT_SAMPLE_RATE: u32 = 48000;
 const FRAME_SIZE_48K: usize = 960; // 48000Hz 20ms
 
 pub fn encode_opus(samples: &[f32], sample_rate: u32) -> Result<Vec<u8>> {
-    // 48000Hz로 업샘플 (선형 보간)
+    // Upsample to 48000Hz (linear interpolation)
     let resampled = upsample_linear(samples, sample_rate, OUTPUT_SAMPLE_RATE);
 
     let mut encoder =
@@ -18,12 +18,12 @@ pub fn encode_opus(samples: &[f32], sample_rate: u32) -> Result<Vec<u8>> {
         .map(|s| (s.clamp(-1.0, 1.0) * 32767.0) as i16)
         .collect();
 
-    // 패딩하여 FRAME_SIZE 배수 맞추기
+    // Pad to make multiple of FRAME_SIZE
     let pad_len = (FRAME_SIZE_48K - pcm_i16.len() % FRAME_SIZE_48K) % FRAME_SIZE_48K;
     let mut padded = pcm_i16;
     padded.extend(vec![0i16; pad_len]);
 
-    // Opus 패킷 인코딩
+    // Encode Opus packets
     let mut opus_packets: Vec<Vec<u8>> = Vec::new();
     let mut buf = vec![0u8; 4096];
     for frame in padded.chunks(FRAME_SIZE_48K) {
@@ -31,11 +31,11 @@ pub fn encode_opus(samples: &[f32], sample_rate: u32) -> Result<Vec<u8>> {
         opus_packets.push(buf[..len].to_vec());
     }
 
-    // OGG 컨테이너로 패키징
+    // Package in OGG container
     encode_ogg_opus(&opus_packets, sample_rate)
 }
 
-/// 선형 보간 업샘플
+/// Linear interpolation upsampling
 fn upsample_linear(samples: &[f32], from_rate: u32, to_rate: u32) -> Vec<f32> {
     if from_rate == to_rate || samples.is_empty() {
         return samples.to_vec();
@@ -54,7 +54,7 @@ fn upsample_linear(samples: &[f32], from_rate: u32, to_rate: u32) -> Vec<f32> {
     out
 }
 
-/// Opus 패킷들을 OGG 스트림으로 묶기
+/// Bundle Opus packets into OGG stream
 fn encode_ogg_opus(packets: &[Vec<u8>], input_sample_rate: u32) -> Result<Vec<u8>> {
     use std::io::Cursor;
 
@@ -62,7 +62,7 @@ fn encode_ogg_opus(packets: &[Vec<u8>], input_sample_rate: u32) -> Result<Vec<u8
     let serial = 0x12345678u32;
     let mut writer = ogg::writing::PacketWriter::new(&mut out);
 
-    // ---- OpusHead 헤더 패킷 ----
+    // ---- OpusHead header packet ----
     // https://wiki.xiph.org/OggOpus#ID_Header
     let mut opus_head = Vec::new();
     opus_head.extend_from_slice(b"OpusHead");
@@ -74,7 +74,7 @@ fn encode_ogg_opus(packets: &[Vec<u8>], input_sample_rate: u32) -> Result<Vec<u8
     opus_head.push(0); // channel mapping family
     writer.write_packet(opus_head, serial, PacketWriteEndInfo::EndPage, 0)?;
 
-    // ---- OpusTags 헤더 패킷 ----
+    // ---- OpusTags header packet ----
     let mut opus_tags = Vec::new();
     opus_tags.extend_from_slice(b"OpusTags");
     let vendor = b"SonicBoom";
@@ -83,8 +83,8 @@ fn encode_ogg_opus(packets: &[Vec<u8>], input_sample_rate: u32) -> Result<Vec<u8
     opus_tags.extend_from_slice(&0u32.to_le_bytes()); // comment list length = 0
     writer.write_packet(opus_tags, serial, PacketWriteEndInfo::EndPage, 0)?;
 
-    // ---- 오디오 데이터 패킷 ----
-    // granule_pos = 누적 샘플 수 (48000Hz 기준)
+    // ---- Audio data packet ----
+    // granule_pos = cumulative sample count (at 48000Hz)
     let frame_samples = FRAME_SIZE_48K as u64;
     let last_idx = packets.len().saturating_sub(1);
     for (i, packet) in packets.iter().enumerate() {

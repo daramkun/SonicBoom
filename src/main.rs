@@ -3,13 +3,14 @@ mod api;
 mod auth;
 mod config;
 mod error;
+mod logging;
 mod tts;
 mod web;
 
 use std::{net::SocketAddr, sync::Arc};
 use tokio::sync::RwLock;
 use tower_sessions::{MemoryStore, SessionManagerLayer};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tower_http::trace::{TraceLayer, DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, DefaultOnFailure};
 
 use admin::{handlers::AdminState, lockout::LoginAttemptTracker};
 use auth::store::TokenStore;
@@ -25,21 +26,27 @@ pub struct AppState {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-            "SonicBoom=info,tower_http=debug".into()
-        }))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
     let config = Arc::new(AppConfig::from_env());
+
+    // Initialize logging
+    logging::init(
+        &config.log_dir,
+        &config.log_level,
+        config.log_to_file,
+        config.log_to_stdout,
+    );
+
+    // Log startup
+    logging::log_startup(config.port, &config.log_dir);
+
+    tracing::info!(admin_id = %config.admin_id, "Admin credentials loaded");
 
     let token_store = Arc::new(
         TokenStore::load(&config.token_store_path)
             .await
             .unwrap_or_else(|e| {
                 tracing::warn!("Could not load token store: {e}. Starting fresh.");
-                // TokenStore::load에서 실패시 빈 store 반환하도록 수정 필요시 처리
+                // Panic if token store initialization fails
                 panic!("Failed to initialize token store: {e}");
             }),
     );
@@ -59,22 +66,28 @@ async fn main() -> anyhow::Result<()> {
         config: Arc::clone(&config),
     };
 
-    // 세션 스토어
+    // Session store
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store);
 
-    // 라우터 구성
+    // Router configuration
     let app = axum::Router::new()
         .merge(web::router(app_state.clone()))
         .merge(api::router(app_state.clone()))
         .merge(admin::router(admin_state))
         .layer(session_layer)
-        .layer(tower_http::trace::TraceLayer::new_for_http());
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::new())
+                .on_request(DefaultOnRequest::new())
+                .on_response(DefaultOnResponse::new())
+                .on_failure(DefaultOnFailure::new())
+        );
 
     let port = config.port;
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
 
-    // 모델 다운로드 및 로드를 백그라운드에서 병렬 실행
+    // Download and load model in background, executed in parallel
     let model_cache_dir = config.model_cache_dir.clone();
     let hf_token = config.hf_token.clone();
     let model_status_bg = Arc::clone(&model_status);
